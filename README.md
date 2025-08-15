@@ -1,47 +1,74 @@
-# @elysiajs/static
+# @vafast/jwt
 
-Plugin for [Elysia](https://github.com/elysiajs/elysia) for using JWT Authentication.
+Plugin for [tirne](https://github.com/tirnejs/tirne) for using JWT Authentication.
 
 ## Installation
 
 ```bash
-bun add @huyooo/elysia-jwt
+bun add @vafast/jwt
 ```
 
 ## Example
 
 ```typescript
-import { Elysia, t } from '@huyooo/elysia';
-import { jwt } from '@huyooo/elysia-jwt';
-import { cookie } from '@elysiajs/cookie';
+import { Server, json } from 'tirne';
+import { Type as t } from '@sinclair/typebox';
+import { jwt } from '@vafast/jwt';
 
-const app = new Elysia()
-  .use(
-    jwt({
-      name: 'jwt',
-      // This should be Environment Variable
-      secret: 'MY_SECRETS',
-    })
-  )
-  .use(cookie())
-  .get('/sign/:name', async ({ jwt, cookie, setCookie, params }) => {
-    setCookie('auth', await jwt.sign(params), {
-      httpOnly: true,
-    });
+const jwtMiddleware = jwt({
+  name: 'jwt',
+  // This should be Environment Variable
+  secret: 'MY_SECRETS',
+});
 
-    return `Sign in as ${params.name}`;
-  })
-  .get('/profile', async ({ jwt, set, cookie: { auth } }) => {
-    const profile = await jwt.verify(auth);
-
-    if (!profile) {
-      set.status = 401;
-      return 'Unauthorized';
+const routes = [
+  {
+    method: 'GET',
+    path: '/sign/:name',
+    handler: async (req: Request, context: any) => {
+      // Apply JWT middleware
+      jwtMiddleware(req, context);
+      
+      const url = new URL(req.url);
+      const name = url.pathname.split('/').pop();
+      
+      // Create cookie
+      const token = await context.jwt.sign({ name });
+      
+      return new Response(`Sign in as ${name}`, {
+        headers: {
+          'Set-Cookie': `auth=${token}; HttpOnly; Path=/`
+        }
+      });
     }
+  },
+  {
+    method: 'GET',
+    path: '/profile',
+    handler: async (req: Request, context: any) => {
+      // Apply JWT middleware
+      jwtMiddleware(req, context);
+      
+      const cookies = req.headers.get('cookie');
+      const authCookie = cookies?.split(';').find(c => c.trim().startsWith('auth='));
+      const token = authCookie?.split('=')[1];
+      
+      const profile = await context.jwt.verify(token);
 
-    return `Hello ${profile.name}`;
-  })
-  .listen(8080);
+      if (!profile) {
+        return new Response('Unauthorized', { status: 401 });
+      }
+
+      return json({ message: `Hello ${profile.name}` });
+    }
+  }
+];
+
+const server = new Server(routes);
+
+export default {
+  fetch: (req: Request) => server.fetch(req)
+};
 ```
 
 ## Config

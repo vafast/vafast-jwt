@@ -1,4 +1,5 @@
-import { Elysia, t } from '@huyooo/elysia'
+import { Server, json } from 'tirne'
+import { Type as t } from '@sinclair/typebox'
 import { jwt } from '../src'
 import { SignJWT } from 'jose'
 
@@ -16,89 +17,97 @@ const post = (path: string, body = {}) =>
 const TEST_SECRET = 'A'
 
 describe('JWT Plugin', () => {
-	const app = new Elysia()
-		.use(
-			jwt({
-				name: 'jwt',
-				secret: TEST_SECRET
-				//exp: '1h' // default expiration,
-				//iat: true - default iat included
-			})
-		)
-		.post(
-			'/sign-token',
-			({ jwt, body }) =>
-				jwt.sign({
+	const jwtMiddleware = jwt({
+		name: 'jwt',
+		secret: TEST_SECRET
+		//exp: '1h' // default expiration,
+		//iat: true - default iat included
+	})
+
+	const routes = [
+		{
+			method: 'POST',
+			path: '/sign-token',
+			handler: async (req: Request, context: any) => {
+				jwtMiddleware(req, context)
+				
+				const body = await req.json()
+				const token = await context.jwt.sign({
 					name: body.name,
 					exp: '30m'
-				}),
-			{
-				body: t.Object({
-					name: t.String()
 				})
+				
+				return new Response(token)
 			}
-		)
-		.post(
-			'/verify-token',
-			async ({ jwt, body }) => {
-				const verifiedPayload = await jwt.verify(body.token)
+		},
+		{
+			method: 'POST',
+			path: '/verify-token',
+			handler: async (req: Request, context: any) => {
+				jwtMiddleware(req, context)
+				
+				const body = await req.json()
+				const verifiedPayload = await context.jwt.verify(body.token)
+				
 				if (!verifiedPayload) {
-					return {
+					return json({
 						success: false,
 						data: null,
 						message: 'Verification failed'
-					}
+					})
 				}
-				return { success: true, data: verifiedPayload }
-			},
-			{
-				body: t.Object({ token: t.String() })
+				return json({ success: true, data: verifiedPayload })
 			}
-		)
-		.post(
-			'/verify-token-with-exp-and-iat',
-			async ({ jwt, body }) => {
-				const verifiedPayload = await jwt.verify(body.token)
+		},
+		{
+			method: 'POST',
+			path: '/verify-token-with-exp-and-iat',
+			handler: async (req: Request, context: any) => {
+				jwtMiddleware(req, context)
+				
+				const body = await req.json()
+				const verifiedPayload = await context.jwt.verify(body.token)
+				
 				if (!verifiedPayload) {
-					return {
+					return json({
 						success: false,
 						data: null,
 						message: 'Verification failed'
-					}
+					})
 				}
 
 				if (!verifiedPayload.exp) {
-					return {
+					return json({
 						success: false,
 						data: null,
 						message: 'exp was not setted on jwt'
-					}
+					})
 				}
 				if (!verifiedPayload.iat) {
-					return {
+					return json({
 						success: false,
 						data: null,
 						message: 'iat was not setted on jwt'
-					}
+					})
 				}
-				return { success: true, data: verifiedPayload }
-			},
-			{
-				body: t.Object({ token: t.String() })
+				return json({ success: true, data: verifiedPayload })
 			}
-		)
+		}
+	]
+
+	const server = new Server(routes)
 
 	it('should sign JWT and then verify', async () => {
 		const payloadToSign = { name: 'Shirokami' }
 
 		const signRequest = post('/sign-token', payloadToSign)
-		const signResponse = await app.handle(signRequest)
+		const signResponse = await server.fetch(signRequest)
 		const token = await signResponse.text()
 
 		expect(token.split('.').length).toBe(3)
 
 		const verifyRequest = post('/verify-token', { token })
-		const verifyResponse = await app.handle(verifyRequest)
+		const verifyResponse = await server.fetch(verifyRequest)
 		const verifiedResult = (await verifyResponse.json()) as {
 			success: boolean
 			data: { name: string; exp: number } | null
@@ -113,7 +122,7 @@ describe('JWT Plugin', () => {
 		const verifyRequest = post('/verify-token', {
 			token: 'invalid'
 		})
-		const verifyResponse = await app.handle(verifyRequest)
+		const verifyResponse = await server.fetch(verifyRequest)
 		const verifiedResult = await verifyResponse.json()
 
 		expect(verifiedResult.success).toBe(false)
@@ -128,7 +137,7 @@ describe('JWT Plugin', () => {
 			.sign(key)
 
 		const verifyRequest = post('/verify-token', { token: expiredToken })
-		const verifyResponse = await app.handle(verifyRequest)
+		const verifyResponse = await server.fetch(verifyRequest)
 		const verifiedResult = await verifyResponse.json()
 
 		expect(verifiedResult.success).toBe(false)
@@ -139,13 +148,13 @@ describe('JWT Plugin', () => {
 		const payloadToSign = { name: 'John Doe' }
 
 		const signRequest = post('/sign-token', payloadToSign)
-		const signResponse = await app.handle(signRequest)
+		const signResponse = await server.fetch(signRequest)
 		const token = await signResponse.text()
 
 		expect(token.split('.').length).toBe(3)
 
 		const verifyRequest = post('/verify-token-with-exp-and-iat', { token })
-		const verifyResponse = await app.handle(verifyRequest)
+		const verifyResponse = await server.fetch(verifyRequest)
 
 		const verifiedResult = (await verifyResponse.json()) as {
 			success: boolean
