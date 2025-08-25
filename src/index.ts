@@ -1,15 +1,13 @@
 import {
 	SignJWT,
 	jwtVerify,
-	type CryptoKey,
 	type JWK,
-	type KeyObject,
 	type JoseHeaderParameters
 } from 'jose'
 
 import { Type as t } from '@sinclair/typebox'
 
-// Define TSchema type for tirne compatibility
+// Define TSchema type for vafast compatibility
 type TSchema = any
 type Static<T> = T
 
@@ -116,16 +114,16 @@ export interface JWTOption<
 	 *
 	 * ---
 	 * @example
-	 * For example, `jwt` will decorate Context with `Context.jwt`
+	 * For example, `jwt` will decorate request with `request.jwt`
 	 *
 	 * ```typescript
 	 * app
-	 *     .decorate({
+	 *     .use(jwt({
 	 *         name: 'myJWTNamespace',
 	 *         secret: process.env.JWT_SECRETS
-	 *     })
-	 *     .get('/sign/:name', ({ myJWTNamespace, params }) => {
-	 *         return myJWTNamespace.sign(params)
+	 *     }))
+	 *     .get('/sign/:name', ({ req, params }) => {
+	 *         return req.myJWTNamespace.sign(params)
 	 *     })
 	 * ```
 	 */
@@ -133,7 +131,7 @@ export interface JWTOption<
 	/**
 	 * JWT Secret
 	 */
-	secret: string | Uint8Array | CryptoKey | JWK | KeyObject
+	secret: string | Uint8Array | JWK
 	/**
 	 * Type strict validation for JWT payload
 	 */
@@ -155,12 +153,12 @@ JWTOption<Name, Schema>) => {
 	const key =
 		typeof secret === 'string' ? new TextEncoder().encode(secret) : secret
 
-	const validator = schema
+			const validator = schema
 		? (data: any) => {
-				// Simple validation for tirne - you might want to implement more robust validation
+				// Simple validation for vafast - you might want to implement more robust validation
 				try {
-					// For tirne, we'll use a simplified validation approach
-					return true // Simplified validation for tirne
+					// For vafast, we'll use a simplified validation approach
+					return true // Simplified validation for vafast
 				} catch {
 					return false
 				}
@@ -309,11 +307,12 @@ JWTOption<Name, Schema>) => {
 		}
 	}
 
-	// Return a middleware function that adds JWT methods to the context
-	return (req: Request, context: any) => {
-		// Add JWT methods to context
-		context[name] = jwtMethods
-		return null // Continue to next middleware/handler
+	// Return a middleware function that adds JWT methods to the request
+	return (req: Request, next: () => Promise<Response>) => {
+		// Add JWT methods to request object
+		(req as any)[name] = jwtMethods
+		// Continue to next middleware/handler
+		return next()
 	}
 }
 

@@ -1,4 +1,4 @@
-import { Server, json } from 'tirne'
+import { Server, createRouteHandler } from 'vafast'
 import { Type as t } from '@sinclair/typebox'
 import { jwt } from '../src'
 
@@ -17,31 +17,31 @@ const routes = [
 	{
 		method: 'GET',
 		path: '/sign/:name',
-		handler: async (req: Request, context: any) => {
+		handler: createRouteHandler(async ({ req, params }: { req: Request, params: Record<string, string> }) => {
 			// Apply JWT middleware
-			jwtMiddleware(req, context)
+			jwtMiddleware(req, () => Promise.resolve(new Response()))
 
-			const url = new URL(req.url)
-			const name = url.pathname.split('/').pop()
+			const name = params.name
 
 			// Create cookie
-			const token = await context.jwt2.sign({ name })
+			const token = await (req as any).jwt2.sign({ name })
 
-			return new Response(`Sign in as ${name}`, {
+			return {
+				data: `Sign in as ${name}`,
 				headers: {
 					'Set-Cookie': `auth=${token}; HttpOnly; Max-Age=${
 						7 * 86400
 					}; Path=/`
 				}
-			})
-		}
+			}
+		})
 	},
 	{
 		method: 'GET',
 		path: '/profile',
-		handler: async (req: Request, context: any) => {
+		handler: createRouteHandler(async ({ req }: { req: Request }) => {
 			// Apply JWT middleware
-			jwtMiddleware(req, context)
+			jwtMiddleware(req, () => Promise.resolve(new Response()))
 
 			const cookies = req.headers.get('cookie')
 			const authCookie = cookies
@@ -49,14 +49,17 @@ const routes = [
 				.find((c) => c.trim().startsWith('auth='))
 			const token = authCookie?.split('=')[1]
 
-			const profile = await context.jwt2.verify(token)
+			const profile = await (req as any).jwt2.verify(token)
 
 			if (!profile) {
-				return new Response('Unauthorized', { status: 401 })
+				return {
+					status: 401,
+					data: 'Unauthorized'
+				}
 			}
 
-			return json({ message: `Hello ${profile.name}` })
-		}
+			return { message: `Hello ${profile.name}` }
+		})
 	}
 ]
 
