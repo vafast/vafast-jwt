@@ -13,7 +13,7 @@
 		"vafast": ">= 0.1.12"
 	},
 	"dependencies": {
-		"jose": "^5.0.0",
+		"jose": "^6.1.0",
 		"@sinclair/typebox": "^0.32.0"
 	},
 	"devDependencies": {
