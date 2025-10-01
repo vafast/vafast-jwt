@@ -20,7 +20,7 @@
 		"@types/bun": "1.1.14",
 		"eslint": "9.6.0",
 		"tsup": "^8.1.0",
-		"typescript": "^5.5.3"
+		"typescript": "^5.9.3"
 	},
 	"main": "./dist/cjs/index.js",
 	"module": "./dist/index.mjs",
