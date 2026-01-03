@@ -1,17 +1,19 @@
 # @vafast/jwt
 
-Plugin for [tirne](https://github.com/tirnejs/tirne) for using JWT Authentication.
+Plugin for [Vafast](https://github.com/vafastjs/vafast) for using JWT Authentication.
 
 ## Installation
 
 ```bash
 bun add @vafast/jwt
+# or
+npm install @vafast/jwt
 ```
 
 ## Example
 
 ```typescript
-import { Server, json } from 'tirne';
+import { Server, createHandler } from 'vafast';
 import { Type as t } from '@sinclair/typebox';
 import { jwt } from '@vafast/jwt';
 
@@ -25,7 +27,7 @@ const routes = [
   {
     method: 'GET',
     path: '/sign/:name',
-    handler: async (req: Request, context: any) => {
+    handler: createHandler(async (req: Request, context: any) => {
       // Apply JWT middleware
       jwtMiddleware(req, context);
       
@@ -40,12 +42,12 @@ const routes = [
           'Set-Cookie': `auth=${token}; HttpOnly; Path=/`
         }
       });
-    }
+    })
   },
   {
     method: 'GET',
     path: '/profile',
-    handler: async (req: Request, context: any) => {
+    handler: createHandler(async (req: Request, context: any) => {
       // Apply JWT middleware
       jwtMiddleware(req, context);
       
@@ -59,8 +61,10 @@ const routes = [
         return new Response('Unauthorized', { status: 401 });
       }
 
-      return json({ message: `Hello ${profile.name}` });
-    }
+      return new Response(JSON.stringify({ message: `Hello ${profile.name}` }), {
+        headers: { 'Content-Type': 'application/json' }
+      });
+    })
   }
 ];
 
