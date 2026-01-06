@@ -1,6 +1,6 @@
 {
 	"name": "@vafast/jwt",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"description": "Plugin for Vafast for JWT authentication",
 	"type": "module",
 	"license": "MIT",
