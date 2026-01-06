@@ -1,5 +1,6 @@
-import { Server, createRouteHandler } from 'vafast'
+import { Server, createHandler, json } from 'vafast'
 import { jwt } from '../src/index'
+import { describe, expect, it } from 'vitest'
 
 describe('Vafast JWT Plugin', () => {
 	it('should sign JWT tokens', async () => {
@@ -15,7 +16,7 @@ describe('Vafast JWT Plugin', () => {
 			{
 				method: 'GET',
 				path: '/sign',
-				handler: createRouteHandler(
+				handler: createHandler(
 					async ({ req }: { req: Request }) => {
 						// Apply JWT middleware
 						jwtMiddleware(req, () =>
@@ -25,7 +26,7 @@ describe('Vafast JWT Plugin', () => {
 						const token = await (req as any).jwt.sign({
 							name: 'testuser'
 						})
-						return { token }
+						return json({ token })
 					}
 				),
 				middleware: [jwtMiddleware]
@@ -53,7 +54,7 @@ describe('Vafast JWT Plugin', () => {
 			{
 				method: 'GET',
 				path: '/verify',
-				handler: createRouteHandler(
+				handler: createHandler(
 					async ({ req }: { req: Request }) => {
 						// Apply JWT middleware
 						jwtMiddleware(req, () =>
@@ -69,7 +70,7 @@ describe('Vafast JWT Plugin', () => {
 						// Then verify it
 						const payload = await (req as any).jwt.verify(token)
 
-						return { payload }
+						return json({ payload })
 					}
 				),
 				middleware: [jwtMiddleware]
@@ -97,7 +98,7 @@ describe('Vafast JWT Plugin', () => {
 			{
 				method: 'GET',
 				path: '/verify-invalid',
-				handler: createRouteHandler(
+				handler: createHandler(
 					async ({ req }: { req: Request }) => {
 						// Apply JWT middleware
 						jwtMiddleware(req, () =>
@@ -109,7 +110,7 @@ describe('Vafast JWT Plugin', () => {
 							'invalid.token.here'
 						)
 
-						return { payload }
+						return json({ payload })
 					}
 				),
 				middleware: [jwtMiddleware]
@@ -137,7 +138,7 @@ describe('Vafast JWT Plugin', () => {
 			{
 				method: 'GET',
 				path: '/custom-namespace',
-				handler: createRouteHandler(
+				handler: createHandler(
 					async ({ req }: { req: Request }) => {
 						// Apply JWT middleware
 						jwtMiddleware(req, () =>
@@ -149,7 +150,7 @@ describe('Vafast JWT Plugin', () => {
 						})
 						const payload = await (req as any).auth.verify(token)
 
-						return { token, payload }
+						return json({ token, payload })
 					}
 				),
 				middleware: [jwtMiddleware]
@@ -180,7 +181,7 @@ describe('Vafast JWT Plugin', () => {
 			{
 				method: 'GET',
 				path: '/custom-claims',
-				handler: createRouteHandler(
+				handler: createHandler(
 					async ({ req }: { req: Request }) => {
 						// Apply JWT middleware
 						jwtMiddleware(req, () =>
@@ -195,7 +196,7 @@ describe('Vafast JWT Plugin', () => {
 
 						const payload = await (req as any).jwt.verify(token)
 
-						return { payload }
+						return json({ payload })
 					}
 				),
 				middleware: [jwtMiddleware]
