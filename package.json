@@ -42,7 +42,7 @@
 		"LICENSE"
 	],
 	"peerDependencies": {
-		"vafast": "^0.3.10"
+		"vafast": "^0.3.0"
 	},
 	"dependencies": {
 		"@sinclair/typebox": "^0.32.0",
@@ -53,7 +53,7 @@
 		"rimraf": "^6.0.1",
 		"tsup": "^8.5.1",
 		"typescript": "^5.4.5",
-		"vafast": "^0.3.10",
+		"vafast": "^0.3.0",
 		"vitest": "^4.0.16"
 	}
 }
