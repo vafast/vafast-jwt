@@ -27,15 +27,15 @@
 	],
 	"repository": {
 		"type": "git",
-		"url": "https://github.com/vafastjs/vafast-jwt"
+		"url": "https://github.com/vafast/vafast-jwt"
 	},
 	"author": {
 		"name": "saltyAom",
 		"url": "https://github.com/SaltyAom",
 		"email": "saltyaom@gmail.com"
 	},
-	"homepage": "https://github.com/vafastjs/vafast-jwt",
-	"bugs": "https://github.com/vafastjs/vafast-jwt/issues",
+	"homepage": "https://github.com/vafast/vafast-jwt",
+	"bugs": "https://github.com/vafast/vafast-jwt/issues",
 	"files": [
 		"dist",
 		"README.md",
