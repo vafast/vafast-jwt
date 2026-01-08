@@ -5,7 +5,7 @@ Plugin for [Vafast](https://github.com/vafastjs/vafast) for using JWT Authentica
 ## Installation
 
 ```bash
-bun add @vafast/jwt
+npm install @vafast/jwt
 # or
 npm install @vafast/jwt
 ```
