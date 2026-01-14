@@ -6,6 +6,7 @@ import {
 } from 'jose'
 
 import { Type as t } from '@sinclair/typebox'
+import { defineMiddleware } from 'vafast'
 
 // Define TSchema type for vafast compatibility
 type TSchema = any
@@ -308,12 +309,12 @@ JWTOption<Name, Schema>) => {
 	}
 
 	// Return a middleware function that adds JWT methods to the request
-	return (req: Request, next: () => Promise<Response>) => {
+	return defineMiddleware(async (req, next) => {
 		// Add JWT methods to request object
 		(req as any)[name] = jwtMethods
 		// Continue to next middleware/handler
 		return next()
-	}
+	})
 }
 
 export default jwt
