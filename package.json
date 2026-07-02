@@ -1,6 +1,6 @@
 {
 	"name": "@vafast/jwt",
-	"version": "0.0.5",
+	"version": "0.0.6",
 	"description": "Plugin for Vafast for JWT authentication",
 	"type": "module",
 	"license": "MIT",
@@ -8,16 +8,17 @@
 		"build": "tsdown",
 		"dev": "npx tsx watch example/index.ts",
 		"test": "npx vitest run",
+		"prepublishOnly": "npm run build",
 		"release": "npm run build && npm run test && npx bumpp && npm publish --access=public"
 	},
-	"main": "./dist/index.js",
-	"module": "./dist/index.js",
-	"types": "./dist/index.d.ts",
+	"main": "./dist/index.mjs",
+	"module": "./dist/index.mjs",
+	"types": "./dist/index.d.mts",
 	"exports": {
 		".": {
-			"types": "./dist/index.d.ts",
-			"import": "./dist/index.js",
-			"default": "./dist/index.js"
+			"types": "./dist/index.d.mts",
+			"import": "./dist/index.mjs",
+			"default": "./dist/index.mjs"
 		}
 	},
 	"keywords": [
@@ -53,6 +54,7 @@
 		"rimraf": "^6.0.1",
 		"tsdown": "^0.19.0-beta.4",
 		"typescript": "^5.4.5",
+		"vafast": "^0.7.6",
 		"vitest": "^4.0.16"
 	}
 }
