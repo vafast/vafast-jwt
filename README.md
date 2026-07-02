@@ -12,67 +12,56 @@ npm install @vafast/jwt
 
 ## Example
 
+See [`example/index.ts`](./example/index.ts) for the current v0.8 API:
+
 ```typescript
-import { Server, createHandler } from 'vafast';
-import { Type as t } from '@sinclair/typebox';
-import { jwt } from '@vafast/jwt';
+import { Server, defineRoute, defineRoutes, json } from 'vafast'
+import { Type as t } from '@sinclair/typebox'
+import { jwt } from '@vafast/jwt'
 
 const jwtMiddleware = jwt({
   name: 'jwt',
-  // This should be Environment Variable
-  secret: 'MY_SECRETS',
-});
+  secret: 'MY_SECRET',
+  sub: 'auth',
+  iss: 'example.com',
+  exp: '7d',
+  schema: t.Object({ name: t.String() }),
+})
 
-const routes = [
-  {
+type JwtRequest = Request & {
+  jwt: {
+    sign: (data: { name: string }) => Promise<string>
+    verify: (token?: string) => Promise<{ name?: string } | false>
+  }
+}
+
+const routes = defineRoutes([
+  defineRoute({
     method: 'GET',
     path: '/sign/:name',
-    handler: createHandler(async (req: Request, context: any) => {
-      // Apply JWT middleware
-      jwtMiddleware(req, context);
-      
-      const url = new URL(req.url);
-      const name = url.pathname.split('/').pop();
-      
-      // Create cookie
-      const token = await context.jwt.sign({ name });
-      
-      return new Response(`Sign in as ${name}`, {
-        headers: {
-          'Set-Cookie': `auth=${token}; HttpOnly; Path=/`
-        }
-      });
-    })
-  },
-  {
+    middleware: [jwtMiddleware],
+    handler: async ({ req, params }) => {
+      const token = await (req as JwtRequest).jwt.sign({ name: params.name })
+      return json({ message: `Sign in as ${params.name}` }, 200, {
+        'Set-Cookie': `auth=${token}; HttpOnly; Path=/`,
+      })
+    },
+  }),
+  defineRoute({
     method: 'GET',
     path: '/profile',
-    handler: createHandler(async (req: Request, context: any) => {
-      // Apply JWT middleware
-      jwtMiddleware(req, context);
-      
-      const cookies = req.headers.get('cookie');
-      const authCookie = cookies?.split(';').find(c => c.trim().startsWith('auth='));
-      const token = authCookie?.split('=')[1];
-      
-      const profile = await context.jwt.verify(token);
+    middleware: [jwtMiddleware],
+    handler: async ({ req }) => {
+      const token = req.headers.get('cookie')?.match(/auth=([^;]+)/)?.[1]
+      const profile = await (req as JwtRequest).jwt.verify(token)
+      if (!profile) return json({ error: 'Unauthorized' }, 401)
+      return json({ message: `Hello ${profile.name}` })
+    },
+  }),
+])
 
-      if (!profile) {
-        return new Response('Unauthorized', { status: 401 });
-      }
-
-      return new Response(JSON.stringify({ message: `Hello ${profile.name}` }), {
-        headers: { 'Content-Type': 'application/json' }
-      });
-    })
-  }
-];
-
-const server = new Server(routes);
-
-export default {
-  fetch: (req: Request) => server.fetch(req)
-};
+const server = new Server(routes)
+export default { fetch: (req: Request) => server.fetch(req) }
 ```
 
 ## Config
