@@ -74,7 +74,7 @@ serve({ fetch: server.fetch, port: 3000 })
 |------|------|------|------|
 | `secret` | `string \| Uint8Array \| JWK` | — | **必填**。空值抛 `Secret can't be empty`；字符串会 `TextEncoder.encode` |
 | `name` | `string` | `'jwt'` | 挂载字段名，如 `req.jwt` / `req.accessToken` |
-| `schema` | TypeBox `TSchema`（请用 `import { Type } from 'vafast'` 创建） | — | `sign` 失败抛错；`verify` 失败返回 `false`。勿另装冲突版本的 `@sinclair/typebox` |
+| `schema` | TypeBox `TSchema` | — | `sign` 失败抛错；`verify` 失败返回 `false` |
 
 ### 标准 Claims（可在配置设默认，也可在 `sign(data)` 覆盖）
 
