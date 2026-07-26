@@ -1,5 +1,4 @@
-import { Server, defineRoute, defineRoutes, json } from 'vafast'
-import { Type as t } from '@sinclair/typebox'
+import { Server, defineRoute, defineRoutes, json, Type } from 'vafast'
 import { jwt } from '../src'
 
 const jwtMiddleware = jwt({
@@ -8,8 +7,8 @@ const jwtMiddleware = jwt({
 	sub: 'auth',
 	iss: 'saltyaom.com',
 	exp: '7d',
-	schema: t.Object({
-		name: t.String(),
+	schema: Type.Object({
+		name: Type.String(),
 	}),
 })
 

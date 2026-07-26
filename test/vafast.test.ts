@@ -1,5 +1,4 @@
-import { Server, defineRoute, defineRoutes, defineMiddleware, err, json } from 'vafast'
-import { Type } from '@sinclair/typebox'
+import { Server, defineRoute, defineRoutes, defineMiddleware, err, json, Type } from 'vafast'
 import { describe, expect, it } from 'vitest'
 import { jwt } from '../src/index'
 
