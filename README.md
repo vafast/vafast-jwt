@@ -1,141 +1,118 @@
 # @vafast/jwt
 
-Plugin for [Vafast](https://github.com/vafastjs/vafast) for using JWT Authentication.
+Vafast 的 JWT **签发 / 校验**中间件，基于 [jose](https://github.com/panva/jose)。
 
-## Installation
+把 `{ sign, verify }` 挂到 `Request`（默认 `req.jwt`）。**不会**自动鉴权或注入用户，需在业务中自行调用。
+
+## 安装
 
 ```bash
 npm install @vafast/jwt
-# or
-npm install @vafast/jwt
 ```
 
-## Example
-
-See [`example/index.ts`](./example/index.ts) for the current v0.8 API:
+## 快速开始
 
 ```typescript
-import { Server, defineRoute, defineRoutes, json } from 'vafast'
-import { Type as t } from '@sinclair/typebox'
+import { Server, defineRoute, defineRoutes, json, serve } from 'vafast'
 import { jwt } from '@vafast/jwt'
 
 const jwtMiddleware = jwt({
-  name: 'jwt',
-  secret: 'MY_SECRET',
-  sub: 'auth',
-  iss: 'example.com',
+  secret: process.env.JWT_SECRET!,
+  iss: 'my-app',
   exp: '7d',
-  schema: t.Object({ name: t.String() }),
 })
 
 type JwtRequest = Request & {
   jwt: {
-    sign: (data: { name: string }) => Promise<string>
-    verify: (token?: string) => Promise<{ name?: string } | false>
+    sign: (data: { userId: string }) => Promise<string>
+    verify: (token?: string) => Promise<{ userId?: string } | false>
   }
 }
 
 const routes = defineRoutes([
   defineRoute({
-    method: 'GET',
-    path: '/sign/:name',
+    method: 'POST',
+    path: '/login',
     middleware: [jwtMiddleware],
-    handler: async ({ req, params }) => {
-      const token = await (req as JwtRequest).jwt.sign({ name: params.name })
-      return json({ message: `Sign in as ${params.name}` }, 200, {
-        'Set-Cookie': `auth=${token}; HttpOnly; Path=/`,
-      })
+    handler: async ({ req }) => {
+      const token = await (req as JwtRequest).jwt.sign({ userId: 'u_1' })
+      return json({ token })
     },
   }),
   defineRoute({
     method: 'GET',
-    path: '/profile',
+    path: '/me',
     middleware: [jwtMiddleware],
     handler: async ({ req }) => {
-      const token = req.headers.get('cookie')?.match(/auth=([^;]+)/)?.[1]
-      const profile = await (req as JwtRequest).jwt.verify(token)
-      if (!profile) return json({ error: 'Unauthorized' }, 401)
-      return json({ message: `Hello ${profile.name}` })
+      const token = req.headers.get('authorization')?.replace(/^Bearer\s+/i, '')
+      const payload = await (req as JwtRequest).jwt.verify(token)
+      if (!payload) return json({ error: 'Unauthorized' }, 401)
+      return json({ userId: payload.userId })
     },
   }),
 ])
 
 const server = new Server(routes)
-export default { fetch: (req: Request) => server.fetch(req) }
+serve({ fetch: server.fetch, port: 3000 })
 ```
 
-## Config
+## 概念速览
 
-This package extends [jose](https://github.com/panva/jose), most config is inherited from Jose.
+| 名词 | 白话 |
+|------|------|
+| JWT | 三段式令牌：`header.payload.signature`。Payload 可读但不可随意篡改 |
+| Claim | Payload 里的字段；有标准声明（`exp` 等）和业务字段（`userId` 等） |
+| Header | 描述算法 / 密钥提示等（`alg`、`typ`、`kid`…） |
 
-Below are configurable properties for using JWT plugin
+本包负责签发与校验；何时 401、从 Header 还是 Cookie 取 token，由业务决定。
 
-### name
+## 选项（完整）
 
-Name to decorate method as:
+### 业务选项
 
-For example, `jwt` will decorate Context with `Context.jwt`
+| 选项 | 类型 | 默认 | 说明 |
+|------|------|------|------|
+| `secret` | `string \| Uint8Array \| JWK` | — | **必填**。空值抛 `Secret can't be empty`；字符串会 `TextEncoder.encode` |
+| `name` | `string` | `'jwt'` | 挂载字段名，如 `req.jwt` / `req.accessToken` |
+| `schema` | TypeBox `TSchema` | — | `sign` 失败抛错；`verify` 失败返回 `false` |
 
-### secret
+### 标准 Claims（可在配置设默认，也可在 `sign(data)` 覆盖）
 
-JWT secret key
+| 选项 | 含义 | 说明 |
+|------|------|------|
+| `iss` | Issuer 签发者 | 谁发的 token，如 `'my-app'` |
+| `sub` | Subject 主体 | token 关于谁，常放用户 ID |
+| `aud` | Audience 受众 | 签发给谁用；可为 `string[]` |
+| `jti` | JWT ID | 令牌唯一编号，便于吊销 / 审计 |
+| `nbf` | Not Before | 生效起点；未到则校验失败 |
+| `exp` | Expiration | 过期时间；建议始终配置，如 `'15m'` / `'7d'` |
+| `iat` | Issued At | 默认写入当前签发时间；设相关条件为 `false` 可影响是否写入 |
 
-### schema
+时间字段（`exp` / `nbf`）常用相对时长：`'60s'`、`'15m'`、`'1h'`、`'7d'`。
 
-Type strict validation for JWT payload
+### JOSE Header
 
-## Jose's config
+| 选项 | 默认 | 说明 |
+|------|------|------|
+| `alg` | `'HS256'` | 签名算法；默认对称密钥，改算法时密钥类型需匹配 |
+| `typ` | `'JWT'` | 令牌类型，一般保持默认 |
+| `kid` | — | 密钥 ID，多密钥轮换时使用 |
+| `jwk` | — | 内嵌 JWK |
+| `jku` | — | JWK Set URL |
+| `x5c` / `x5t` / `x5u` | — | X.509 证书相关 |
+| `cty` | — | 内容类型（嵌套 JWT 等） |
+| `crit` | — | 关键扩展头列表 |
+| `b64` | — | RFC 7797；普通登录场景勿改 |
 
-Below is the config inherits from [jose](https://github.com/panva/jose)
+## 方法
 
-### alg
+- **`sign(data)`** → `Promise<string>`：可选 schema 校验 → 合并 claims/header → 签名
+- **`verify(jwt?)`** → `Promise<payload | false>`：失败一律 `false`（不抛错）
 
-@default 'HS256'
+## 文档
 
-Algorithm to sign JWT with
+完整概念解释、场景示例与注意事项见站点文档：[JWT 中间件](https://vafast.huyooo.com/middleware/jwt.html)（仓库内 `vafast-doc/docs/middleware/jwt.md`）。
 
-### crit
+## License
 
-Critical Header Parameter.
-
-### iss
-
-JWT Issuer
-
-@see [RFC7519#section-4.1.1](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.1)
-
-### sub
-
-JWT Subject
-
-@see [RFC7519#section-4.1.2](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.2)
-
-### aud
-
-JWT Audience
-
-@see [RFC7519#section-4.1.3](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.3)
-
-### jti
-
-JWT ID
-
-@see [RFC7519#section-4.1.7](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.7)
-
-### nbf
-
-JWT Not Before
-
-@see [RFC7519#section-4.1.5](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.5)
-
-### exp
-
-JWT Expiration Time
-
-@see [RFC7519#section-4.1.4](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.4)
-
-### iat
-
-JWT Issued At
-
-@see [RFC7519#section-4.1.6](https://www.rfc-editor.org/rfc/rfc7519#section-4.1.6)
+见仓库根目录。

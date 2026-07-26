@@ -5,12 +5,9 @@ import {
 	type JoseHeaderParameters
 } from 'jose'
 
-import { Type as t } from '@sinclair/typebox'
+import { type Static, type TSchema } from '@sinclair/typebox'
+import { Value } from '@sinclair/typebox/value'
 import { defineMiddleware } from 'vafast'
-
-// Define TSchema type for vafast compatibility
-type TSchema = any
-type Static<T> = T
 
 type UnwrapSchema<
 	Schema extends TSchema | undefined,
@@ -154,17 +151,11 @@ JWTOption<Name, Schema>) => {
 	const key =
 		typeof secret === 'string' ? new TextEncoder().encode(secret) : secret
 
-			const validator = schema
-		? (data: any) => {
-				// Simple validation for vafast - you might want to implement more robust validation
-				try {
-					// For vafast, we'll use a simplified validation approach
-					return true // Simplified validation for vafast
-				} catch {
-					return false
-				}
-		  }
-		: undefined
+	/** 用 TypeBox 校验 payload；未传 schema 时跳过 */
+	const isValidPayload = (data: unknown): boolean => {
+		if (!schema) return true
+		return Value.Check(schema, data)
+	}
 
 	// Create JWT methods
 	const jwtMethods = {
@@ -172,6 +163,10 @@ JWTOption<Name, Schema>) => {
 			data: UnwrapSchema<Schema, Record<string, string | number>> &
 				JWTPayloadSpec
 		) {
+			if (!isValidPayload(data)) {
+				throw new Error('JWT payload does not match schema')
+			}
+
 			/**
 			 * @summary Creates the JWS (JSON Web Signature) header object.
 			 *
@@ -296,12 +291,22 @@ JWTOption<Name, Schema>) => {
 			if (!jwt) return false
 
 			try {
-				const data: any = (await jwtVerify(jwt, key)).payload
+				const data = (await jwtVerify(jwt, key)).payload
 
-				if (validator && !validator!(data))
-					throw new Error('JWT validation failed')
+				if (schema) {
+					// jose 会附带 iss/exp/iat 等标准 claims；
+					// schema 通常只描述业务字段，因此两种都试一次
+					const business = { ...data } as Record<string, unknown>
+					for (const key of ['iss', 'sub', 'aud', 'jti', 'nbf', 'exp', 'iat']) {
+						delete business[key]
+					}
+					if (!Value.Check(schema, data) && !Value.Check(schema, business)) {
+						return false
+					}
+				}
 
-				return data
+				return data as UnwrapSchema<Schema, Record<string, string | number>> &
+					JWTPayloadSpec
 			} catch (_) {
 				return false
 			}
